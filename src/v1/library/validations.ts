@@ -1,60 +1,9 @@
 import { functions } from "./functions";
+import { constants } from '../constants';
+import dateFormat from "dateformat";
 
 export class validations {
   constructor() {}
-
-  /**
-   * Function to check requested parameters received or not
-   * @param fields fields array to be check for validations
-   * @param req req.body object
-   * @param res response to be send through
-   */
-  validate(fields: any, req: any, res: any) {
-    let errorfields: any = new Array();
-    for (let key in fields) {
-      if (
-        req[fields[key]] == undefined ||
-        String(req[fields[key]]).trim() == ""
-      ) {
-        errorfields.push(fields[key]);
-      }
-    }
-
-    if (errorfields.length > 0) {
-      errorfields = errorfields.join(", ");
-      let functionsObj: any = new functions();
-      res.send(functionsObj.output(0, "Please provide " + errorfields));
-      return false;
-    } else {
-      return true;
-    }
-  }
-
-  /**
-   * Validate array values
-   * @param array array of key value pair
-   * @param required_values string array of required values
-   * @param res res object
-   */
-  validateArrayValues(required_values: any[], array: any[], res: any) {
-    let errorfields: any[] = [];
-    for (let i = 0; i < array.length; i++) {
-      for (let k = 0; k < required_values.length; k++) {
-        if (!array[i].hasOwnProperty(required_values[k])) {
-          errorfields.push(required_values[k]);
-        }
-      }
-    }
-
-    if (errorfields.length == 0) return true;
-
-    let errorfields_string: string = errorfields.join(", ");
-    let functionsObj: any = new functions();
-    res.send(
-      functionsObj.output(0, "Please provide all " + errorfields_string)
-    );
-    return false;
-  }
 
   /**
      * Validate requet object with schema validation
@@ -85,4 +34,91 @@ export class validations {
       next();
     }
   }
+
+
+  isNumeric(value: any) {
+    return !isNaN(Number(value));
+  }
+
+  isValidDate(dateStr: string): boolean {
+
+    const ALLOWED_DATE_FORMATS = constants.ALLOWED_DATE_FORMATS;
+
+    return ALLOWED_DATE_FORMATS.some(fmt => {
+      try {
+        return dateFormat(dateStr, fmt) ? true : false;
+      } catch (e) {
+        return false;
+      }
+    });
+  }
+
+  validateParsedInvoiceFile(parsed: any[]) {
+
+    let returnData = {
+      error: true,
+      message: 'SOMETHING_WENT_WRONG',
+      data: []
+    } as { error: boolean, message: string, data: any[] }
+
+    if (!parsed.length) {
+      returnData.message = 'Invalid parsed array input';
+      return returnData;
+    }
+
+    // Validate Headers
+    const REQUIRED_FIELDS = constants.REQUIRED_FIELDS;
+
+    const fileHeaders = Object.keys(parsed[0]);
+    const missingHeaders = REQUIRED_FIELDS.filter((f) => !fileHeaders.includes(f));
+
+    if (missingHeaders.length > 0) {
+      returnData.message = `Missing required fields: ${missingHeaders.join(", ")}`;
+      return returnData;
+    }
+
+    let records: InvoiceRow[] = parsed;
+
+    // Validate each row
+    const validatedRows: InvoiceRow[] = [];
+
+    for (let row of records) {
+
+      const errors: string[] = [];
+
+      REQUIRED_FIELDS.forEach((f: string) => {
+        if (!row[f] || row[f].toString().trim() === "") {
+          errors.push(`${f} is required`)
+        }
+      });
+
+      // Numeric validation
+      ["Total Amount", "Item Quantity", "Item Price", "Item Total"].forEach((f) => {
+        if (!this.isNumeric(row[f])) {
+          errors.push(`${f} must be numeric`)
+        }
+      });
+
+      // Date validation
+      if (!this.isValidDate(row['Date'])) {
+        errors.push(`Invalid date format: ${row['Date']}`);
+      }
+
+      row.Errors = errors.length ? errors.join("; ") : "";
+
+      validatedRows.push(row);
+    }
+
+    returnData.error = false;
+    returnData.message = 'Success';
+    returnData.data = validatedRows;
+    return returnData;
+  }
+
+}
+
+
+export interface InvoiceRow {
+  [key: string]: any;
+  Errors?: string;
 }
