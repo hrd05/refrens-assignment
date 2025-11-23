@@ -119,7 +119,7 @@ export class functions {
 
         const invoiceJson = {
           invoiceNumber: first["Invoice Number"],
-          date: first["Date"],
+          date: dateFormat(first["Date"], 'yyyy-mm-dd'), 
           customerName: first["Customer Name"],
           items: invoiceLines.map((r) => ({
             description: r["Item Description"],
