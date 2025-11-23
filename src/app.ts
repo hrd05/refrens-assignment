@@ -22,8 +22,8 @@ app.use(
 /**
  * env variables Configuration
  */
-const result = dotenv.config({ path: path.join(__dirname, "../", ".env") });
-if (result.error) throw result.error;
+// const result = dotenv.config({ path: path.join(__dirname, "../", ".env") });
+// if (result.error) throw result.error;
 
 /**
  * Express Server
